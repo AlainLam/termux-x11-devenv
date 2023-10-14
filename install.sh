@@ -145,8 +145,7 @@ locale-gen
 
 # Add export statement to .profile
 locale_selected=$(echo $locale_selected | cut -d" " -f1)
-echo "# Locale Environment Variables" >> /home/'"$normal_user_name"'/.profile
-echo "export LANG=$locale_selected" >> /home/'"$normal_user_name"'/.profile
+echo "LANG=$locale_selected" >> /etc/default/locale
 '
 
 proot-distro login debian --shared-tmp -- bash -c "$locale_updates"
@@ -335,6 +334,7 @@ if [[ $is_require_as == "Y" || $is_require_as == "y" ]]; then
     # Move the android-studio to the target directory
     mv ./android-studio ~/Android
     '
+    
     proot-distro login debian --shared-tmp --user $normal_user_name -- bash -c "$cmdline"
 
     # Android SDK build tools fixes
