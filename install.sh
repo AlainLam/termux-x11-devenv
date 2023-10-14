@@ -436,7 +436,7 @@ adb() {
     ~/Android/android-sdk-tools/platform-tools/adb "$@"
 }
 # File to store previous ports
-adb_port_file='"$user_log_directory"'/adb_port.txt
+adb_port_file=~/log/adb_port.txt
 # Port range to scan when the port number is not available or invalid
 # Adjust the range accordingly for your tablet
 port_range="30000-50000"
@@ -454,9 +454,9 @@ connect_to_ports() {
             echo "adb connected localhost:$port"
             # Modify max_phantom_processes
             echo "update max_phantom_processes to 32768"
-            adb shell device_config put activity_manager max_phantom_processes 32768
+            adb -s localhost:$port shell device_config put activity_manager max_phantom_processes 32768
             # Write port number to file
-            echo "$port" > $adb_port_file
+            echo "$port" >$adb_port_file
             # If start-server is not empty, adb was not previously opened, so kill adb
             if [ $kill_adb -eq 1 ]; then
                 adb kill-server
@@ -510,29 +510,52 @@ if [ -n "$adb_port" ]; then
     fi
 fi
 
-# If the port is invalid or does not exist, scan ports and save them to adb_test_ports
-echo "pending the localhost:[$port_range]"
-nmap_output=$(nmap -p "$port_range" localhost)
-while IFS= read -r line; do
-    if [[ $line =~ ^[0-9]+/tcp.*open.* ]]; then
-        echo "$line"
-        port=$(echo "$line" | awk -F/ "{print $1}")
-        adb_test_ports+=("$port")
-    fi
-done <<<"$nmap_output"
+# Prompt user to select a method
+selected_port_method=""
 
-# Attempt connection to ports
-connect_to_ports "${adb_test_ports[@]}"
+while [[ $selected_port_method != "1" && $selected_port_method != "2" && $selected_port_method != "3" ]]; do
+    read -p "
+Please choose the method you want:
+
+    1. Enter the special port(Manual)
+    2. Use nmap to scan the ports(Slowly)
+    3. Skip for now
+
+Your choice(1/2/3): " selected_port_method
+done
+
+if [[ $selected_port_method == "1" ]]; then
+    read -p "Please enter a special port(1-65535) " enter_port
+    echo "pending the localhost:$enter_port"
+    connect_to_ports "$enter_port"
+fi
+
+if [[ $selected_port_method == "2" ]]; then
+    # If the port is invalid or does not exist, scan ports and save them to adb_test_ports
+    echo "pending the localhost:[$port_range]"
+    nmap_output=$(nmap -p "$port_range" localhost)
+    while IFS= read -r line; do
+        if [[ $line =~ ^[0-9]+/tcp.*open.* ]]; then
+            echo "$line"
+            port=$(echo "$line" | awk -F/ "{print $1}")
+            adb_test_ports+=("$port")
+        fi
+    done <<<"$nmap_output"
+
+    # Attempt connection to ports
+    connect_to_ports "${adb_test_ports[@]}"
+fi
 '
 
 is_fixes_mpp=""
 
 while [[ $is_fixes_mpp != "Y" && $is_fixes_mpp != "y" && $is_fixes_mpp != "N" && $is_fixes_mpp != "n" ]]; do
-    read -p "Should the errors caused by the max_phantom_processes parameter introduced in Android 12 be automatically fixed?
+    read -p "
+Should the errors caused by the max_phantom_processes parameter introduced in Android 12 be automatically fixed?
 
-For the script to take effect:
-- You still need to manually enable Wireless debugging.
-- Perform at least one adb pairing (you may need to re-pair if the pairing fails).
+    For the script to take effect:
+    - You still need to manually enable Wireless debugging.
+    - Perform at least one adb pairing (you may need to re-pair if the pairing fails).
 
 Your choice(Y/n): " is_fixes_mpp
 done
@@ -577,39 +600,45 @@ fi
 # The script for start the Debian X11 Desktop Environment
 start_debian_x='#!/bin/bash
 # Author: https://www.alainlam.cn
+
 # Close all the xfce processes
 processes=$(pgrep -f xfce4)
-
 for pid in $processes; do
     echo "killing $pid"
     kill $pid
 done
 
-# Check if X11 server is running, otherwise start X11 server
-if pgrep -f com.termux.x11 >/dev/null; then
-    echo "com.termux.x11 is running."
-else
-    echo "Starting X11 server"
-    XDG_RUNTIME_DIR=$TMPDIR
-    termux-x11 :0 -ac &
-    sleep 3
-fi
+# Close all the x11 processes
+processes=$(pgrep -f com.termux.x11)
+for pid in $processes; do
+    echo "killing x11 server: $pid"
+    kill $pid
+done
 
-# Check if pulseaudio server is running, otherwise start PulseAudio server
-if pgrep -f pulseaudio >/dev/null; then
-    echo "PulseAudio is running."
-else
-    echo "Starting pulseaudio server"
-    pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
-fi
+# Close all the pulseaudio processes
+processes=$(pgrep -f pulseaudio)
+for pid in $processes; do
+    echo "killing pulseaudio: $pid"
+    kill $pid
+done
 
-# Check if virgl renderer is running, otherwise start virgl renderer
-if pgrep -f virglrenderer-android >/dev/null; then
-    echo "Virgl Renderer is running"
-else
-    echo "Starting Virgl Renderer"
-    virgl_test_server_android &
-fi
+# Close all the virgl renderer processes
+processes=$(pgrep -f virglrenderer-android)
+for pid in $processes; do
+    echo "killing virglrenderer-android: $pid"
+    kill $pid
+done
+
+echo "Starting X11 server"
+XDG_RUNTIME_DIR=$TMPDIR
+termux-x11 :0 -ac &
+sleep 3
+
+echo "Starting pulseaudio server"
+pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
+
+echo "Starting Virgl Renderer"
+virgl_test_server_android &
 
 # Fix max_phantom_processes issues
 echo "Trying to fix the max_phantom_processes issues"
@@ -638,6 +667,9 @@ while [[ $is_require_shortcuts != "Y" && $is_require_shortcuts != "y" && $is_req
 done
 
 if [[ $is_require_shortcuts == "Y" || $is_require_shortcuts == "y" ]]; then
+    if [ ! -d ~/.shortcuts ]; then
+        mkdir ~/.shortcuts
+    fi
     echo $start_debian_x >~/.shortcuts/DebianX11
 else
     echo "Debian ENV: Skip create a desktop shortcuts for Debian"
