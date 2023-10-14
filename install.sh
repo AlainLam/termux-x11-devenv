@@ -145,6 +145,7 @@ locale-gen
 
 # Add export statement to .profile
 locale_selected=$(echo $locale_selected | cut -d" " -f1)
+echo "# Locale Environment Variables" >> /home/'"$normal_user_name"'/.profile
 echo "export LANG=$locale_selected" >> /home/'"$normal_user_name"'/.profile
 '
 
@@ -247,7 +248,7 @@ checking_files() {
     fi
 }
 # Set up file monitoring
-inotifywait --exclude '\''^.*\.temp/.*\'' -mrq -e create,move "$ANDROID_SDK_PATH" | while read -r directory event file; do
+inotifywait --exclude '\''^.*\.temp/.*'\'' -mrq -e create,move "$ANDROID_SDK_PATH" | while read -r directory event file; do
     for monitor_dir in "${MONITOR_DIRS[@]}"; do
         if [[ "$directory$file" =~ "$ANDROID_SDK_PATH$monitor_dir" ]]; then
             checking_files "$directory$file"
@@ -300,12 +301,13 @@ if [[ $is_require_as == "Y" || $is_require_as == "y" ]]; then
     ######## Configure Android Environment Variables
     echo "Debian ENV: Configure Android Environment Variables"
     echo "" >> ~/.profile
-    echo "export ANDROID_HOME=$HOME/Android/Sdk" >> ~/.profile
-    echo "export ANDROID_SDK_HOME=$ANDROID_HOME" >> ~/.profile
-    echo "export ANDROID_USER_HOME=$HOME/.android" >> ~/.profile
-    echo "export ANDROID_EMULATOR_HOME=$ANDROID_USER_HOME" >> ~/.profile
-    echo "export ANDROID_AVD_HOME=$ANDROID_EMULATOR_HOME/avd/" >> ~/.profile
-    echo "export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools" >> ~/.profile
+    echo "# Android Environment Variables" >> ~/.profile
+    echo "export ANDROID_HOME=\$HOME/Android/Sdk" >> ~/.profile
+    echo "export ANDROID_SDK_HOME=\$ANDROID_HOME" >> ~/.profile
+    echo "export ANDROID_USER_HOME=\$HOME/.android" >> ~/.profile
+    echo "export ANDROID_EMULATOR_HOME=\$ANDROID_USER_HOME" >> ~/.profile
+    echo "export ANDROID_AVD_HOME=\$ANDROID_EMULATOR_HOME/avd/" >> ~/.profile
+    echo "export PATH=\$PATH:\$ANDROID_HOME/tools:\$ANDROID_HOME/tools/bin:\$ANDROID_HOME/platform-tools" >> ~/.profile
 
     ######## Install Android Studio
     cd ~/Downloads
