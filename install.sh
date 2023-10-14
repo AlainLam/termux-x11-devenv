@@ -273,6 +273,18 @@ if [[ $is_require_as == "Y" || $is_require_as == "y" ]]; then
     #!/bin/bash
     # Author: https://www.alainlam.cn
 
+    ######## Configure Android Environment Variables
+    echo "Debian ENV: Configure Android Environment Variables"
+    echo "" >> ~/.profile
+    echo "# Android Environment Variables" >> ~/.profile
+    echo "export ANDROID_HOME=\$HOME/Android/Sdk" >> ~/.profile
+    echo "export ANDROID_SDK_HOME=\$ANDROID_HOME" >> ~/.profile
+    echo "export ANDROID_USER_HOME=\$HOME/.android" >> ~/.profile
+    echo "export ANDROID_EMULATOR_HOME=\$ANDROID_USER_HOME" >> ~/.profile
+    echo "export ANDROID_AVD_HOME=\$ANDROID_EMULATOR_HOME/avd/" >> ~/.profile
+    echo "export PATH=\$PATH:\$ANDROID_HOME/tools:\$ANDROID_HOME/tools/bin:\$ANDROID_HOME/platform-tools" >> ~/.profile
+    source ~/.profile
+
     # Create the download folder
     if [[ ! -d ~/Downloads ]]; then
         mkdir ~/Downloads
@@ -289,26 +301,30 @@ if [[ $is_require_as == "Y" || $is_require_as == "y" ]]; then
 
     echo "Debian ENV: Move the cmdline tools to the target directory"
     # Create the cmdline-tools folder
-    mkdir -p ~/Android/Sdk/cmdline-tools/latest
+    mkdir -p $ANDROID_SDK_HOME/cmdline-tools/latest
+
     # Move the cmdline tools to the target directory
-    mv ~/Downloads/cmdline-tools/* ~/Android/Sdk/cmdline-tools/latest/
+    mv ~/Downloads/cmdline-tools/* $ANDROID_SDK_HOME/cmdline-tools/latest/
 
     # Agree all the licenses
     echo "Debian ENV: Agree all the licenses"
-    cd ~/Android/Sdk/cmdline-tools/latest/bin/
+    cd $ANDROID_SDK_HOME/cmdline-tools/latest/bin/
     yes | ./sdkmanager --licenses
 
-    ######## Configure Android Environment Variables
-    echo "Debian ENV: Configure Android Environment Variables"
-    echo "" >> ~/.profile
-    echo "# Android Environment Variables" >> ~/.profile
-    echo "export ANDROID_HOME=\$HOME/Android/Sdk" >> ~/.profile
-    echo "export ANDROID_SDK_HOME=\$ANDROID_HOME" >> ~/.profile
-    echo "export ANDROID_USER_HOME=\$HOME/.android" >> ~/.profile
-    echo "export ANDROID_EMULATOR_HOME=\$ANDROID_USER_HOME" >> ~/.profile
-    echo "export ANDROID_AVD_HOME=\$ANDROID_EMULATOR_HOME/avd/" >> ~/.profile
-    echo "export PATH=\$PATH:\$ANDROID_HOME/tools:\$ANDROID_HOME/tools/bin:\$ANDROID_HOME/platform-tools" >> ~/.profile
+    ######## Install the Emulator
+    echo "Debian ENV: Fixing the issue of Android Studio missing an emulator that cannot run, but the emulator should be cannot works on the aarch64"
+    echo "Debian ENV: Downloading the Emulator..."
+    wget https://redirector.gvt1.com/edgedl/android/repository/emulator-linux_x64-10696886.zip
 
+    # Decompress compressed files
+    unzip emulator-linux_x64-*.zip
+
+    # Move the emulator to the target directory
+    mv ./emulator $ANDROID_SDK_HOME/
+
+    # Fix the package.xml
+    wget https://public-static.alainlam.cn/7g5mAuLfebuSyWOv/package.xml -O $ANDROID_SDK_HOME/emulator/package.xml
+    
     ######## Install Android Studio
     cd ~/Downloads
     # Downloading the Android Studio
